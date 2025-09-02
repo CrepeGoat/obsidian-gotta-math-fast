@@ -9,18 +9,16 @@ import {
 	Setting,
 } from "obsidian";
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
+interface FastMatherSettings {
 	mySetting: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
+const DEFAULT_SETTINGS: FastMatherSettings = {
 	mySetting: "default",
 };
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class FastMather extends Plugin {
+	settings: FastMatherSettings;
 
 	async onload() {
 		await this.loadSettings();
@@ -126,9 +124,9 @@ class SampleModal extends Modal {
 }
 
 class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: FastMather;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: FastMather) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
