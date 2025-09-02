@@ -86,6 +86,10 @@ export default class FastMather extends Plugin {
 			console.log("click", evt);
 		});
 
+		this.registerDomEvent(document, "beforeinput", (evt: InputEvent) => {
+			console.log("mod text", evt);
+		});
+
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(
 			window.setInterval(() => console.log("setInterval"), 5 * 60 * 1000)
