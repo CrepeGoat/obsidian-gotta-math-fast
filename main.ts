@@ -1,3 +1,5 @@
+import { Extension, Prec } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import {
 	App,
 	Editor,
@@ -90,6 +92,17 @@ export default class FastMather extends Plugin {
 			console.log("mod text", evt);
 		});
 
+		// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/main.ts#L163-L168
+		this.registerEditorExtension(
+			Prec.highest(
+				EditorView.domEventHandlers({
+					keydown: (evt, view) => {
+						this.onBeforeInput(evt, view);
+					},
+				})
+			)
+		);
+
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(
 			window.setInterval(() => console.log("setInterval"), 5 * 60 * 1000)
@@ -97,6 +110,112 @@ export default class FastMather extends Plugin {
 	}
 
 	onunload() {}
+
+	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/latex_suite.ts#L31
+	onBeforeInput(event: KeyboardEvent, view: EditorView) {
+		const success = this.handleBeforeInput(
+			event.key,
+			event.shiftKey,
+			event.ctrlKey || event.metaKey,
+			this.isComposing(view, event),
+			view
+		);
+
+		if (success) event.preventDefault();
+	}
+
+	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/latex_suite.ts#L37
+	handleBeforeInput(
+		key: string,
+		shiftKey: boolean,
+		ctrlKey: boolean,
+		isIME: boolean,
+		view: EditorView
+	) {
+		if (shiftKey) {
+			return false;
+		}
+
+		if (key === " ") {
+			// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/utils/editor_utils.ts#L12
+			const cursorPos = view.state.selection.main.to;
+			const doc = view.state.doc;
+
+			const chars = doc.sliceString(
+				Math.max(cursorPos - 3, 0),
+				cursorPos
+			);
+			console.log("last chars: ", cursorPos, chars);
+
+			if (
+				doc
+					.sliceString(
+						Math.max(cursorPos - 2, 0),
+						Math.max(cursorPos - 1, 0)
+					)
+					.trim() === "" &&
+				doc.sliceString(Math.max(cursorPos - 1, 0), cursorPos) === "m"
+			) {
+				console.log("last chars = m; ", cursorPos);
+				this.replaceRange(view, cursorPos - 1, cursorPos, "$$");
+				return true;
+			} else if (
+				doc
+					.sliceString(
+						Math.max(cursorPos - 3, 0),
+						Math.max(cursorPos - 2, 0)
+					)
+					.trim() === "" &&
+				doc.sliceString(Math.max(cursorPos - 2, 0), cursorPos) === "mm"
+			) {
+				console.log("last chars = mm; ", cursorPos);
+				this.replaceRange(view, cursorPos - 2, cursorPos, "$$\n\n$$\n");
+				return true;
+			} else if (
+				doc
+					.sliceString(
+						Math.max(cursorPos - 3, 0),
+						Math.max(cursorPos - 2, 0)
+					)
+					.trim() === "" &&
+				doc.sliceString(Math.max(cursorPos - 2, 0), cursorPos) === "ma"
+			) {
+				console.log("last chars = ma; ", cursorPos);
+				this.replaceRange(
+					view,
+					cursorPos - 2,
+					cursorPos,
+					"$$\n\\begin{align}\n\n\\end{align}\n$$\n"
+				);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/utils/editor_utils.ts#L6
+	replaceRange(
+		view: EditorView,
+		start: number,
+		end: number,
+		replacement: string
+	) {
+		view.dispatch({
+			changes: { from: start, to: end, insert: replacement },
+		});
+	}
+
+	/**
+	 * Check if the user is typing in an IME composition.
+	 * Returns true even if the given event is the first keydown event of an IME composition.
+	 */
+	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/utils/editor_utils.ts#L136
+	isComposing(view: EditorView, event: KeyboardEvent): boolean {
+		// view.composing and event.isComposing are false for the first keydown event of an IME composition,
+		// so we need to check for event.keyCode === 229 to prevent IME from triggering keydown events.
+		// Note that keyCode is deprecated - it is used here because it is apparently the only way to detect the first keydown event of an IME composition.
+		return view.composing || event.keyCode === 229;
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
