@@ -147,6 +147,7 @@ export default class FastMather extends Plugin {
 			);
 			console.log("last chars: ", cursorPos, chars);
 
+			// TODO disallow expansions for text followed by non-whitespace
 			if (
 				doc
 					.sliceString(
@@ -194,6 +195,7 @@ export default class FastMather extends Plugin {
 	}
 
 	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/utils/editor_utils.ts#L6
+	// TODO add a `newCursorPos` parameter to allow setting the cursor inside the inserted text
 	replaceRange(
 		view: EditorView,
 		start: number,
