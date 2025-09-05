@@ -1,4 +1,10 @@
-import { Extension, Prec } from "@codemirror/state";
+import {
+	ChangeDesc,
+	EditorSelection,
+	Extension,
+	Prec,
+	SelectionRange,
+} from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
 	App,
@@ -158,7 +164,7 @@ export default class FastMather extends Plugin {
 				doc.sliceString(Math.max(cursorPos - 1, 0), cursorPos) === "m"
 			) {
 				console.log("last chars = m; ", cursorPos);
-				this.replaceRange(view, cursorPos - 1, cursorPos, "$$");
+				this.replaceRange(view, cursorPos - 1, cursorPos, "$$", 1);
 				return true;
 			} else if (
 				doc
@@ -170,7 +176,13 @@ export default class FastMather extends Plugin {
 				doc.sliceString(Math.max(cursorPos - 2, 0), cursorPos) === "mm"
 			) {
 				console.log("last chars = mm; ", cursorPos);
-				this.replaceRange(view, cursorPos - 2, cursorPos, "$$\n\n$$\n");
+				this.replaceRange(
+					view,
+					cursorPos - 2,
+					cursorPos,
+					"$$\n\n$$\n",
+					"$$\n".length
+				);
 				return true;
 			} else if (
 				doc
@@ -186,7 +198,8 @@ export default class FastMather extends Plugin {
 					view,
 					cursorPos - 2,
 					cursorPos,
-					"$$\n\\begin{align}\n\n\\end{align}\n$$\n"
+					"$$\n\\begin{align}\n\n\\end{align}\n$$\n",
+					"$$\n\\begin{align}\n".length
 				);
 				return true;
 			}
@@ -195,15 +208,20 @@ export default class FastMather extends Plugin {
 	}
 
 	// from https://github.com/artisticat1/obsidian-latex-suite/blob/ce31511a47949e3d4d0b3a43444949fd5a6a69f6/src/utils/editor_utils.ts#L6
-	// TODO add a `newCursorPos` parameter to allow setting the cursor inside the inserted text
 	replaceRange(
 		view: EditorView,
 		start: number,
 		end: number,
-		replacement: string
+		replacement: string,
+		newPos: number | undefined
 	) {
+		newPos = newPos ?? replacement.length;
 		view.dispatch({
 			changes: { from: start, to: end, insert: replacement },
+			// https://codemirror.net/docs/guide/#selection
+			selection: EditorSelection.create([
+				EditorSelection.cursor(start + newPos),
+			]),
 		});
 	}
 
