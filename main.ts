@@ -16,6 +16,7 @@ import {
 	PluginSettingTab,
 	Setting,
 } from "obsidian";
+import { Context } from "context";
 
 interface FastMatherSettings {
 	mySetting: string;
