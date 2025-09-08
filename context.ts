@@ -7,19 +7,9 @@ export class Context {
 		this.state = state;
 	}
 
-	private scanPositions(positions: number[]) {
-		let bound_stack: ContextToken[] = [];
-		let result: (ContextToken[] | undefined)[] = positions.map(
-			(_) => undefined
-		);
-		if (positions.length === 0) {
-			return result;
-		}
+	private scanBounds(): ContextToken[] {
+		let result: ContextToken[] = [];
 
-		// assume positions of interest are sorted
-		positions.sort();
-
-		let i_pos = 0;
 		let i_doc = 0;
 		while (true) {
 			// store bounds stack at each requested position
