@@ -7,55 +7,60 @@ export class Context {
 		this.state = state;
 	}
 
+	private getBoundsAbout(
+		position: number,
+		bounds: ContextToken[]
+	): ContextToken[] {
+		for (bound of bounds) {
+		}
+	}
+
 	private scanBounds(): ContextToken[] {
 		let result: ContextToken[] = [];
 
 		let i_doc = 0;
-		while (true) {
-			// store bounds stack at each requested position
-			if (positions[i_pos] <= i_doc) {
-				result[i_pos] = [
-					...(positions[i_pos] < i_doc
-						? bound_stack.slice(0, -1) // ignore last bound if position interrupts it
-						: bound_stack),
-				];
-				// terminating condition
-				i_pos++;
-				if (i_pos >= positions.length) {
-					break;
-				}
-			}
-			// terminating condition
-			if (i_doc >= this.state.doc.length) {
-				break;
-			}
-
+		while (i_doc < this.state.doc.length) {
 			// scan for bounds (also increments i_doc)
-			for (let bound of ["$$", "$", undefined]) {
+			for (let bound_text of ["$$", "$", "\n", undefined]) {
 				// terminating condition
-				if (bound === undefined) {
+				if (bound_text === undefined) {
 					i_doc++;
 					break;
 				}
 
 				if (
-					this.state.doc.sliceString(i_doc, i_doc + bound.length) !==
-					bound
+					this.state.doc.sliceString(
+						i_doc,
+						i_doc + bound_text.length
+					) !== bound_text
 				) {
 					continue;
 				}
 
-				let last_bound = bound_stack.last()?.text(this.state);
-				if (last_bound === bound) {
-					bound_stack.pop();
-				} else {
-					bound_stack.push(
-						new ContextToken(i_doc, i_doc + bound.length)
-					);
+				let last_bound_text = result.last()?.text(this.state);
+				if (last_bound_text === "$" && bound_text === "\n") {
+					// a `$` terminated with a newline is not a bound
+					result.pop();
+					continue;
 				}
 
+				let bound_type: BoundType;
+				if (last_bound_text === bound_text) {
+					bound_type = BoundType.Closing;
+				} else {
+					bound_type = BoundType.Opening;
+				}
+
+				result.push(
+					new ContextToken(
+						i_doc,
+						i_doc + bound_text.length,
+						bound_type
+					)
+				);
+
 				// make sure not to interpret the same bound multiple times
-				i_doc = i_doc + bound.length;
+				i_doc = i_doc + bound_text.length;
 				break;
 			}
 		}
@@ -90,10 +95,12 @@ export class Context {
 class ContextToken {
 	from: number;
 	to: number;
+	type: BoundType;
 
-	constructor(from: number, to: number) {
+	constructor(from: number, to: number, type: BoundType) {
 		this.from = from;
 		this.to = to;
+		this.type = type;
 	}
 
 	public text(state: EditorState): string {
@@ -104,4 +111,9 @@ class ContextToken {
 export enum MajorContextTypes {
 	Text,
 	Math,
+}
+
+enum BoundType {
+	Opening,
+	Closing,
 }
