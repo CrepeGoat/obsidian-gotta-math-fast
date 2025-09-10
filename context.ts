@@ -9,38 +9,30 @@ export class Context {
 	}
 
 	private getBoundsAbout(
-		positions: readonly number[],
-		bounds: readonly ContextToken[]
+		bounds: readonly ContextToken[],
+		bound_indices: readonly number[]
 	): (ContextToken[] | undefined)[] {
-		let result: (ContextToken[] | undefined)[] = Array(positions.length);
+		let result: (ContextToken[] | undefined)[] = Array(
+			bound_indices.length
+		);
 		let stack: ContextToken[] = [];
 
-		// `positions` must be sorted
-		for (let i = 1; i < positions.length; i++) {
-			assert(positions[i - 1] <= positions[i]);
-		}
+		this.assertIsSorted(bound_indices);
 
-		let i_bounds = 0;
 		let i_pos = 0;
-		let bound_last: ContextToken | undefined = undefined;
-		while (true) {
-			const pos = bound_last?.to ?? 0;
-			while (positions[i_pos] < pos) {
-				result[i_pos] = [
-					...(bound_last?.type === BoundType.Opening
-						? stack.slice(0, -1)
-						: stack),
-				];
-				// terminating condition
+		for (let i_bound = 0; ; i_bound++) {
+			while (i_bound === bound_indices[i_pos]) {
+				result[i_pos] = [...stack];
 				i_pos++;
-				if (i_pos >= positions.length) {
-					break;
+				if (i_pos >= bound_indices.length) {
+					return result;
 				}
 			}
+			// the positions should run out before the bounds -> this shouldn't trigger
+			assert(i_bound >= bounds.length);
 
-			bound_last = bounds[i_bounds];
-			i_bounds++;
-			if (bound_last.type === BoundType.Closing) {
+			const bound = bounds[i_bound];
+			if (bound.type === BoundType.Closing) {
 				// A closing bound must have a matching opening bound
 				// TODO check that bounds are matching
 				assert(stack.last()?.type === BoundType.Opening);
@@ -49,8 +41,6 @@ export class Context {
 				stack.push();
 			}
 		}
-
-		return result;
 	}
 
 	private bisectPositionsToBounds(
@@ -80,13 +70,39 @@ export class Context {
 	private bisectBounds(
 		bounds: readonly ContextToken[],
 		position: number
-	): number {}
+	): number {
+		if (bounds.length === 0) {
+			return 0;
+		}
+
+		const i_bound_mid = bounds.length / 2;
+		const cmp = this.compareToBounds(bounds[i_bound_mid], position);
+		if (cmp) {
+			return this.bisectBounds(bounds.slice(0, i_bound_mid), position);
+		} else {
+			return (
+				this.bisectBounds(bounds.slice(i_bound_mid + 1), position) +
+				i_bound_mid +
+				1
+			);
+		}
+	}
 
 	private compareToBounds(bound: ContextToken, position: number): boolean {
+		// TODO 2x-check logic
+		// a position that interrupts a brace should be considered outside its bounded region
 		if (bound.type === BoundType.Opening) {
+			// outside = before
 			return position < bound.to;
 		} else {
-			return position >= bound.from;
+			// outside = after
+			return position <= bound.from;
+		}
+	}
+
+	private assertIsSorted(array: readonly number[]) {
+		for (let i = 1; i < array.length; i++) {
+			assert(array[i - 1] <= array[i]);
 		}
 	}
 
