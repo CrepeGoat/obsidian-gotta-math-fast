@@ -1,4 +1,5 @@
 import { EditorState, SelectionRange } from "@codemirror/state";
+import * as assert from "assert";
 
 export class Context {
 	state: EditorState;
@@ -8,10 +9,84 @@ export class Context {
 	}
 
 	private getBoundsAbout(
-		position: number,
-		bounds: ContextToken[]
-	): ContextToken[] {
-		for (bound of bounds) {
+		positions: readonly number[],
+		bounds: readonly ContextToken[]
+	): (ContextToken[] | undefined)[] {
+		let result: (ContextToken[] | undefined)[] = Array(positions.length);
+		let stack: ContextToken[] = [];
+
+		// `positions` must be sorted
+		for (let i = 1; i < positions.length; i++) {
+			assert(positions[i - 1] <= positions[i]);
+		}
+
+		let i_bounds = 0;
+		let i_pos = 0;
+		let bound_last: ContextToken | undefined = undefined;
+		while (true) {
+			const pos = bound_last?.to ?? 0;
+			while (positions[i_pos] < pos) {
+				result[i_pos] = [
+					...(bound_last?.type === BoundType.Opening
+						? stack.slice(0, -1)
+						: stack),
+				];
+				// terminating condition
+				i_pos++;
+				if (i_pos >= positions.length) {
+					break;
+				}
+			}
+
+			bound_last = bounds[i_bounds];
+			i_bounds++;
+			if (bound_last.type === BoundType.Closing) {
+				// A closing bound must have a matching opening bound
+				// TODO check that bounds are matching
+				assert(stack.last()?.type === BoundType.Opening);
+				stack.pop();
+			} else {
+				stack.push();
+			}
+		}
+
+		return result;
+	}
+
+	private bisectPositionsToBounds(
+		bounds: readonly ContextToken[],
+		positions: readonly number[]
+	): number[] {
+		if (positions.length === 0) {
+			return [];
+		}
+
+		const i_pos_mid = positions.length / 2;
+		const i_map_to_bounds = this.bisectBounds(bounds, i_pos_mid);
+
+		return [
+			...this.bisectPositionsToBounds(
+				bounds.slice(0, i_map_to_bounds + 1), // include middle bound
+				positions.slice(0, i_pos_mid) // exclude middle position
+			),
+			i_map_to_bounds,
+			...this.bisectPositionsToBounds(
+				bounds.slice(i_map_to_bounds), // include middle bound
+				positions.slice(i_pos_mid + 1) // exclude middle position
+			).map((pos) => pos + i_map_to_bounds),
+		];
+	}
+
+	private bisectBounds(
+		bounds: readonly ContextToken[],
+		position: number
+	): number {}
+
+	private compareToBounds(bound: ContextToken, position: number): boolean {
+		if (bound.type === BoundType.Opening) {
+			return position < bound.to;
+		} else {
+			return position >= bound.from;
 		}
 	}
 
@@ -70,7 +145,7 @@ export class Context {
 
 	private getMajorType(
 		state: EditorState,
-		bound_stack: ContextToken[]
+		bound_stack: readonly ContextToken[]
 	): MajorContextTypes {
 		let result = MajorContextTypes.Text;
 		for (let bound of bound_stack) {
