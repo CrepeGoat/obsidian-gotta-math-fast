@@ -16,7 +16,7 @@ import {
 	PluginSettingTab,
 	Setting,
 } from "obsidian";
-import { Context } from "context";
+import { getContextTypeAtSelection } from "context";
 
 interface FastMatherSettings {
 	mySetting: string;
