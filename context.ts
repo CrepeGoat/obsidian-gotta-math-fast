@@ -6,7 +6,7 @@ export function getContextTypeAtSelection(
 	ranges: readonly SelectionRange[]
 ): MajorContextTypes[] {
 	const bounds = parseContextTokens(doc);
-	console.log("");
+	console.log("context tokens: ", bounds);
 
 	const positions = ranges.flatMap((range) => [range.from, range.to]);
 	const pos_bound_indices = bisectPositionsToBounds(bounds, positions);
@@ -75,13 +75,15 @@ function getBoundsAbout(
 			}
 		}
 		// the positions should run out before the bounds -> this shouldn't trigger
-		assert(i_bound >= bounds.length);
+		assert(i_bound < bounds.length);
 
 		const bound = bounds[i_bound]!;
 		if (bound.type === BoundType.Closing) {
 			// A closing bound must have a matching opening bound
 			// TODO check that bounds are matching
-			assert(stack.last()?.type === BoundType.Opening);
+			assert(
+				stack.last()?.type ?? BoundType.Opening === BoundType.Opening
+			);
 			stack.pop();
 		} else {
 			stack.push();
@@ -97,8 +99,8 @@ function bisectPositionsToBounds(
 		return [];
 	}
 
-	const i_pos_mid = positions.length / 2;
-	const i_map_to_bounds = bisectBounds(bounds, i_pos_mid);
+	const i_pos_mid = Math.floor(positions.length / 2);
+	const i_map_to_bounds = bisectBounds(bounds, positions[i_pos_mid]!);
 
 	return [
 		...bisectPositionsToBounds(
@@ -154,6 +156,7 @@ function assertIsSorted(array: readonly number[]) {
 
 function parseContextTokens(doc: Text): ContextToken[] {
 	let result: ContextToken[] = [];
+	let stack: ContextToken[] = [];
 
 	let i_doc = 0;
 	while (i_doc < doc.length) {
@@ -175,17 +178,27 @@ function parseContextTokens(doc: Text): ContextToken[] {
 			if (last_bound_text === "$$" && bound_text === "$") {
 				continue;
 			}
-			if (last_bound_text === "$" && bound_text === "\n") {
-				// a `$` terminated with a newline is not a bound
-				result.pop();
+			if (bound_text === "\n") {
+				if (last_bound_text === "$") {
+					// a `$` terminated with a newline is not a bound
+					result.pop();
+				}
+				// newlines are not a bound -> ignore
 				continue;
 			}
 
 			let bound_type: BoundType;
-			if (last_bound_text === bound_text) {
-				bound_type = BoundType.Closing;
-			} else {
+			if (
+				pushToBoundStack(
+					stack,
+					doc,
+					i_doc,
+					i_doc + bound_text.length
+				) == null
+			) {
 				bound_type = BoundType.Opening;
+			} else {
+				bound_type = BoundType.Closing;
 			}
 
 			result.push(
@@ -199,6 +212,24 @@ function parseContextTokens(doc: Text): ContextToken[] {
 	}
 
 	return result;
+}
+
+function pushToBoundStack(
+	stack: ContextToken[],
+	doc: Text,
+	from: number,
+	to: number
+): ContextToken | undefined {
+	const text = doc.sliceString(from, to);
+	const last_bound = stack.last;
+	if (
+		stack.last()?.type === BoundType.Opening &&
+		stack.last()?.text(doc) === text
+	) {
+		return stack.pop();
+	} else {
+		stack.push(new ContextToken(from, to, BoundType.Opening));
+	}
 }
 
 class ContextToken {
