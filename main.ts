@@ -139,23 +139,33 @@ export default class FastMather extends Plugin {
 		isIME: boolean,
 		view: EditorView
 	) {
+		const main_selection = view.state.selection.main;
 		const [context_type, bound] = getContextTypeAtSelection(
 			view.state.doc,
-			[view.state.selection.main]
+			[main_selection]
 		)[0]!;
 		if (context_type === MajorContextTypes.Math) {
 			if (key === "Tab") {
-				if (bound === undefined) {
-					return false;
+				if (bound != undefined) {
+					let new_pos: number = view.state.doc.length;
+					if (bound.end != undefined) {
+						if (
+							main_selection.from === main_selection.to &&
+							main_selection.from === bound.end.from
+						) {
+							new_pos = bound.end.to;
+						} else {
+							new_pos = bound.end.from;
+						}
+					}
+					view.dispatch({
+						// https://codemirror.net/docs/guide/#selection
+						selection: EditorSelection.create([
+							EditorSelection.cursor(new_pos),
+						]),
+					});
+					return true;
 				}
-				view.dispatch({
-					// https://codemirror.net/docs/guide/#selection
-					selection: EditorSelection.create([
-						EditorSelection.cursor(
-							bound!.end?.to ?? view.state.doc.length
-						),
-					]),
-				});
 			}
 			return false;
 		}
