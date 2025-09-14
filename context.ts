@@ -29,7 +29,7 @@ function getMajorType(
 		undefined,
 	];
 	for (let bound of bound_stack) {
-		const text = bound.start.text(doc);
+		const text = bound.opening.text(doc);
 		if (result[0] === MajorContextTypes.Math && text === "\\text{") {
 			result[0] = MajorContextTypes.Text;
 			result[1] = bound;
@@ -87,8 +87,8 @@ function getBoundsAbout(
 			// A closing bound must have a matching opening bound
 			// TODO check that bounds are matching
 			assert(stack.length > 0);
-			assert(stack.last()!.end === undefined);
-			stack.last()!.end = bound;
+			assert(stack.last()!.closing === undefined);
+			stack.last()!.closing = bound;
 			stack.pop();
 		} else {
 			stack.push(new BoundTokens(bound));
@@ -240,12 +240,12 @@ function pushToBoundStack(
 }
 
 class BoundTokens {
-	start: ContextToken;
-	end: ContextToken | undefined;
+	opening: ContextToken;
+	closing: ContextToken | undefined;
 
-	constructor(start: ContextToken, end?: ContextToken | undefined) {
-		this.start = start;
-		this.end = end;
+	constructor(opening: ContextToken, closing?: ContextToken | undefined) {
+		this.opening = opening;
+		this.closing = closing;
 	}
 }
 

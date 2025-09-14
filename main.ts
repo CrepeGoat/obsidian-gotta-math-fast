@@ -148,14 +148,14 @@ export default class FastMather extends Plugin {
 			if (key === "Tab") {
 				if (bound != undefined) {
 					let new_pos: number = view.state.doc.length;
-					if (bound.end != undefined) {
+					if (bound.closing != undefined) {
 						if (
 							main_selection.from === main_selection.to &&
-							main_selection.from === bound.end.from
+							main_selection.from === bound.closing.from
 						) {
-							new_pos = bound.end.to;
+							new_pos = bound.closing.to;
 						} else {
-							new_pos = bound.end.from;
+							new_pos = bound.closing.from;
 						}
 					}
 					view.dispatch({
