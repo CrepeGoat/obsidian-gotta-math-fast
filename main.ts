@@ -151,7 +151,6 @@ export default class FastMather extends Plugin {
 				Math.max(cursorPos - 3, 0),
 				cursorPos
 			);
-			console.log("last chars: ", cursorPos, chars);
 
 			// TODO disallow expansions for text followed by non-whitespace
 			if (
@@ -163,7 +162,6 @@ export default class FastMather extends Plugin {
 					.trim() === "" &&
 				doc.sliceString(Math.max(cursorPos - 1, 0), cursorPos) === "m"
 			) {
-				console.log("last chars = m; ", cursorPos);
 				this.replaceRange(view, cursorPos - 1, cursorPos, "$$", 1);
 				return true;
 			} else if (
@@ -175,7 +173,6 @@ export default class FastMather extends Plugin {
 					.trim() === "" &&
 				doc.sliceString(Math.max(cursorPos - 2, 0), cursorPos) === "mm"
 			) {
-				console.log("last chars = mm; ", cursorPos);
 				this.replaceRange(
 					view,
 					cursorPos - 2,
@@ -193,7 +190,6 @@ export default class FastMather extends Plugin {
 					.trim() === "" &&
 				doc.sliceString(Math.max(cursorPos - 2, 0), cursorPos) === "ma"
 			) {
-				console.log("last chars = ma; ", cursorPos);
 				this.replaceRange(
 					view,
 					cursorPos - 2,
