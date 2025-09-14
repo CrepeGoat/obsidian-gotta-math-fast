@@ -56,21 +56,20 @@ function longestCommonPrefix<T>(a1: readonly T[], a2: readonly T[]): T[] {
 
 function getBoundsAbout(
 	bounds: readonly ContextToken[],
-	bound_indices: readonly number[]
+	pos_bound_indices: readonly number[]
 ): ContextToken[][] {
+	assertIsSorted(pos_bound_indices);
 	let result: (ContextToken[] | undefined)[] = Array.from(
-		Array(bound_indices.length)
+		Array(pos_bound_indices.length)
 	);
 	let stack: ContextToken[] = [];
 
-	assertIsSorted(bound_indices);
-
 	let i_pos = 0;
 	for (let i_bound = 0; ; i_bound++) {
-		while (i_bound === bound_indices[i_pos]) {
+		while (i_bound === pos_bound_indices[i_pos]) {
 			result[i_pos] = [...stack];
 			i_pos++;
-			if (i_pos >= bound_indices.length) {
+			if (i_pos >= pos_bound_indices.length) {
 				return result.map((x) => x!);
 			}
 		}
@@ -81,12 +80,10 @@ function getBoundsAbout(
 		if (bound.type === BoundType.Closing) {
 			// A closing bound must have a matching opening bound
 			// TODO check that bounds are matching
-			assert(
-				stack.last()?.type ?? BoundType.Opening === BoundType.Opening
-			);
+			assert(stack.last()?.type === BoundType.Opening);
 			stack.pop();
 		} else {
-			stack.push();
+			stack.push(bound);
 		}
 	}
 }
@@ -124,27 +121,26 @@ function bisectBounds(
 	}
 
 	const i_bound_mid = Math.floor(bounds.length / 2);
-	const cmp = compareToBounds(bounds[i_bound_mid]!, position);
-	if (cmp) {
-		return bisectBounds(bounds.slice(0, i_bound_mid), position);
-	} else {
+	if (compareToBounds(position, bounds[i_bound_mid]!)) {
 		return (
 			bisectBounds(bounds.slice(i_bound_mid + 1), position) +
 			i_bound_mid +
 			1
 		);
+	} else {
+		return bisectBounds(bounds.slice(0, i_bound_mid), position);
 	}
 }
 
-function compareToBounds(bound: ContextToken, position: number): boolean {
+function compareToBounds(position: number, bound: ContextToken): boolean {
 	// TODO 2x-check logic
 	// a position that interrupts a brace should be considered outside its bounded region
 	if (bound.type === BoundType.Opening) {
 		// outside = before
-		return position < bound.to;
+		return position >= bound.to;
 	} else {
 		// outside = after
-		return position <= bound.from;
+		return position > bound.from;
 	}
 }
 
