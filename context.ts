@@ -4,7 +4,7 @@ import { strict as assert } from "assert";
 export function getContextTypeAtSelection(
 	doc: Text,
 	ranges: readonly SelectionRange[]
-): MajorContextTypes[] {
+): [MajorContextTypes, BoundTokens | undefined][] {
 	const bounds = parseContextTokens(doc);
 	const positions = ranges.flatMap((range) => [range.from, range.to]);
 	const pos_bound_indices = bisectPositionsToBounds(bounds, positions);
@@ -22,20 +22,25 @@ export function getContextTypeAtSelection(
 
 function getMajorType(
 	doc: Text,
-	bound_stack: readonly ContextToken[]
-): MajorContextTypes {
-	let result = MajorContextTypes.Text;
+	bound_stack: readonly BoundTokens[]
+): [MajorContextTypes, BoundTokens | undefined] {
+	let result: [MajorContextTypes, BoundTokens | undefined] = [
+		MajorContextTypes.Text,
+		undefined,
+	];
 	for (let bound of bound_stack) {
-		const text = bound.text(doc);
-		if (result === MajorContextTypes.Math && text === "\\text{") {
-			result = MajorContextTypes.Text;
+		const text = bound.start.text(doc);
+		if (result[0] === MajorContextTypes.Math && text === "\\text{") {
+			result[0] = MajorContextTypes.Text;
+			result[1] = bound;
 			continue;
 		}
 		if (
-			result === MajorContextTypes.Text &&
+			result[0] === MajorContextTypes.Text &&
 			(text === "$$" || text === "$")
 		) {
-			result = MajorContextTypes.Math;
+			result[0] = MajorContextTypes.Math;
+			result[1] = bound;
 			continue;
 		}
 	}
@@ -55,12 +60,12 @@ function longestCommonPrefix<T>(a1: readonly T[], a2: readonly T[]): T[] {
 function getBoundsAbout(
 	bounds: readonly ContextToken[],
 	pos_bound_indices: readonly number[]
-): ContextToken[][] {
+): BoundTokens[][] {
 	assertIsSorted(pos_bound_indices);
-	let result: (ContextToken[] | undefined)[] = Array.from(
+	let result: (BoundTokens[] | undefined)[] = Array.from(
 		Array(pos_bound_indices.length)
 	);
-	let stack: ContextToken[] = [];
+	let stack: BoundTokens[] = [];
 
 	let i_pos = 0;
 	for (let i_bound = 0; ; i_bound++) {
@@ -68,22 +73,30 @@ function getBoundsAbout(
 			result[i_pos] = [...stack];
 			i_pos++;
 			if (i_pos >= pos_bound_indices.length) {
-				return result.map((x) => x!);
+				break;
 			}
 		}
-		// the positions should run out before the bounds -> this shouldn't trigger
-		assert(i_bound < bounds.length);
+		if (i_bound >= bounds.length) {
+			// the positions should run out before the bounds
+			assert(i_pos >= pos_bound_indices.length);
+			break;
+		}
 
 		const bound = bounds[i_bound]!;
 		if (bound.type === BoundType.Closing) {
 			// A closing bound must have a matching opening bound
 			// TODO check that bounds are matching
-			assert(stack.last()?.type === BoundType.Opening);
+			assert(stack.length > 0);
+			assert(stack.last()!.end === undefined);
+			stack.last()!.end = bound;
 			stack.pop();
 		} else {
-			stack.push(bound);
+			stack.push(new BoundTokens(bound));
 		}
 	}
+
+	assert(i_pos >= pos_bound_indices.length);
+	return result.map((x) => x!);
 }
 
 function bisectPositionsToBounds(
@@ -223,6 +236,16 @@ function pushToBoundStack(
 		return stack.pop();
 	} else {
 		stack.push(new ContextToken(from, to, BoundType.Opening));
+	}
+}
+
+class BoundTokens {
+	start: ContextToken;
+	end: ContextToken | undefined;
+
+	constructor(start: ContextToken, end?: ContextToken | undefined) {
+		this.start = start;
+		this.end = end;
 	}
 }
 
