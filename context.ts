@@ -6,8 +6,6 @@ export function getContextTypeAtSelection(
 	ranges: readonly SelectionRange[]
 ): MajorContextTypes[] {
 	const bounds = parseContextTokens(doc);
-	console.log("context tokens: ", bounds);
-
 	const positions = ranges.flatMap((range) => [range.from, range.to]);
 	const pos_bound_indices = bisectPositionsToBounds(bounds, positions);
 	const pos_bound_stacks = getBoundsAbout(bounds, pos_bound_indices);
