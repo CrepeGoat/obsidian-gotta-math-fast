@@ -173,7 +173,7 @@ function parseContextTokens(doc: Text): ContextToken[] {
 				continue;
 			}
 			if (bound_text === "\n") {
-				if (last_bound_text === "$") {
+				if (last_bound_text === "$" /* TODO and bound is opening */) {
 					// a `$` terminated with a newline is not a bound
 					result.pop();
 				}
